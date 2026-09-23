@@ -18,31 +18,30 @@ class AuboRobot:
         self.rpc = AuboRPC(rpc_url)
         self.state = RobotState(self.rpc, robot_name)
 
+
     def connect(self):
         names = self.rpc.call("getRobotNames")
         if self.robot_name not in names:
             raise RuntimeError(
-                f"{self.robot_name} not found: {names}"
+                f"Robot not found: {names}"
             )
+
         print("Connected:", self.robot_name)
+
 
     def get_state(self):
         return self.state.get_all()
 
-    def power_on(self):
-        return self.rpc.call(
-            f"{self.robot_name}.RobotControl.powerOn"
-        )
 
-    def startup(self):
-        return self.rpc.call(
-            f"{self.robot_name}.RobotControl.startup"
-        )
+    def get_tcp_pose(self):
+        return self.state.get_tcp_pose()
+
 
     def move_joint_deg(self, joints_deg):
+
         joints_rad = [
-            x * math.pi / 180.0
-            for x in joints_deg
+            j * math.pi / 180.0
+            for j in joints_deg
         ]
 
         return self.rpc.call(
@@ -56,5 +55,37 @@ class AuboRobot:
             ]
         )
 
-    def wait(self, seconds=1):
-        time.sleep(seconds)
+
+    def move_pose(self, pose):
+
+        """
+        TCP Cartesian control
+
+        pose:
+        [x,y,z,rx,ry,rz]
+
+        unit:
+        m + rad
+        """
+
+        return self.rpc.call(
+            f"{self.robot_name}.MotionControl.moveLine",
+            [
+                pose,
+                0.25,
+                0.25,
+                0,
+                0
+            ]
+        )
+
+
+    def stop(self):
+
+        return self.rpc.call(
+            f"{self.robot_name}.MotionControl.stop"
+        )
+
+
+    def sleep(self, t):
+        time.sleep(t)

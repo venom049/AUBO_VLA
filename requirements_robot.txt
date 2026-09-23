@@ -1,0 +1,5 @@
+# AUBO robot backend environment
+numpy
+scipy
+opencv-python
+pillow
