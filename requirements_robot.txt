@@ -1,5 +1,6 @@
-# AUBO robot backend environment
-numpy
-scipy
-opencv-python
-pillow
+# Reproducible Ubuntu 22.04 / Python 3.10 robot and observation environment.
+# JSON-RPC uses Python's standard library; pyaubo-sdk is not required here.
+numpy==2.2.6
+scipy==1.15.3
+opencv-python==4.12.0.88
+pillow==11.3.0

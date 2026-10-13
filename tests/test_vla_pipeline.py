@@ -1,46 +1,32 @@
-import sys
-sys.path.append(".")
+#!/usr/bin/env python3
+"""Simulator integration demo. Use --status for a read-only connection check."""
 
-from robot.aubo_driver import AuboRobot
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from robot.demo import run_demo
+
 from control.action_decoder import ActionDecoder
 from vla.fake_vla import FakeVLA
 
 
-robot = AuboRobot()
-
-robot.connect()
-
-
-# get current robot pose
-current_pose = robot.get_tcp_pose()
-
-print("Current TCP:")
-print(current_pose)
-
-
-# VLA inference
-model = FakeVLA()
-
-action = model.predict()
-
-print("VLA action:")
-print(action.vector())
+def pipeline_demo(robot):
+    current_pose = robot.get_tcp_pose()
+    action = FakeVLA().predict()
+    decoder = ActionDecoder(frame=robot.config.action_frame)
+    target_pose = decoder.delta_to_pose(current_pose, action.arm)
+    print("Current TCP:", current_pose)
+    print("Policy action:", action.vector())
+    print("Target TCP:", target_pose)
+    robot.move_pose(target_pose)
+    print("Motion completed; measured TCP:", robot.get_tcp_pose())
 
 
-# decode action
-decoder = ActionDecoder()
-
-target_pose = decoder.delta_to_pose(
-    current_pose,
-    action.arm
-)
+def main():
+    return run_demo(pipeline_demo, "FakeVLA action decoding and measured TCP arrival")
 
 
-print("Target pose:")
-print(target_pose)
-
-
-# execute
-robot.move_pose(target_pose)
-
-print("Motion command sent")
+if __name__ == "__main__":
+    raise SystemExit(main())

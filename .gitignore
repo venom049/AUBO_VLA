@@ -18,3 +18,5 @@ ENV/
 # Logs / temp
 *.log
 *.tmp
+*.zip
+REVISION.txt

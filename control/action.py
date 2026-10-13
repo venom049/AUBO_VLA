@@ -5,10 +5,11 @@ class RobotAction:
     VLA output:
 
     arm:
-    dx dy dz dRx dRy dRz
+    dx dy dz dRx dRy dRz (metres / ZYX Euler radians)
+    The decoder declares whether deltas use the base or tool frame.
 
     gripper:
-    end-effector command
+    Reserved end-effector command; the current arm driver does not execute it.
     """
 
     def __init__(self,

@@ -1,24 +1,30 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""Simulator integration demo. Use --status for a read-only connection check."""
 
+import math
 import sys
-sys.path.append(".")
+from pathlib import Path
 
-from robot.aubo_driver import AuboRobot
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from robot.demo import run_demo
 
 
-robot = AuboRobot()
+def motion_demo(robot):
+    initial = robot.get_state()["joint"]
+    target = [math.degrees(j) for j in initial]
+    target[0] += 5.0
+    print("Current state:", robot.get_state())
+    print("Move J1 +5 degrees, then return")
+    robot.move_joint_deg(target)
+    print("Measured joints:", robot.get_state()["joint"])
+    robot.move_joint_deg([math.degrees(j) for j in initial])
+    print("Finished; measured return joints:", robot.get_state()["joint"])
 
-robot.connect()
 
-print("Current state:")
-print(robot.get_state())
+def main():
+    return run_demo(motion_demo, "AUBO joint motion and measured return test")
 
-print("Move test...")
-robot.move_joint_deg(
-    [5, -14.61, 100, 25, 90, 0]
-)
 
-robot.wait(3)
-
-print("Finished")
+if __name__ == "__main__":
+    raise SystemExit(main())

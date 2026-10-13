@@ -1,45 +1,53 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""JSON-RPC transport. Controller return codes are checked by the driver."""
 
 import json
+import math
+import urllib.error
 import urllib.request
 
 
-class AuboRPC:
-    """
-    AUBO Sim JSON-RPC communication layer.
-    Runs inside AUBO virtual machine.
-    """
+class AuboRPCError(RuntimeError):
+    def __init__(self, method, error):
+        self.code = error.get("code")
+        self.data = error.get("data")
+        super().__init__(f"{method}: RPC error {self.code}: {error.get('message', error)}")
 
-    def __init__(self, url="http://127.0.0.1:9012/jsonrpc"):
+
+class AuboRPC:
+    def __init__(self, url="http://127.0.0.1:9012/jsonrpc", timeout=5.0):
         self.url = url
+        self.timeout = timeout
         self.req_id = 0
 
-    def call(self, method, params=None):
-        if params is None:
-            params = []
-
+    def call(self, method, params=None, *, timeout=None):
+        timeout = self.timeout if timeout is None else timeout
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("RPC timeout must be finite and positive")
         self.req_id += 1
-
+        request_id = self.req_id
         payload = {
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params,
-            "id": self.req_id
+            "jsonrpc": "2.0", "method": method,
+            "params": [] if params is None else params, "id": request_id,
         }
-
-        data = json.dumps(payload).encode("utf-8")
-
         request = urllib.request.Request(
-            self.url,
-            data=data,
-            headers={"Content-Type": "application/json"}
+            self.url, data=json.dumps(payload, allow_nan=False).encode("utf-8"),
+            headers={"Content-Type": "application/json"}, method="POST",
         )
-
-        with urllib.request.urlopen(request, timeout=5) as response:
-            result = json.loads(response.read().decode("utf-8"))
-
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        except (urllib.error.URLError, OSError) as exc:
+            raise RuntimeError(f"{method}: cannot reach AUBO at {self.url}: {exc}") from exc
+        except (ValueError, UnicodeError) as exc:
+            raise RuntimeError(f"{method}: invalid JSON response") from exc
+        if not isinstance(result, dict) or result.get("jsonrpc") != "2.0":
+            raise RuntimeError(f"{method}: invalid JSON-RPC response")
+        if result.get("id") != request_id or type(result.get("id")) is not int:
+            raise RuntimeError(f"{method}: response ID does not match request {request_id}")
+        if ("error" in result) == ("result" in result):
+            raise RuntimeError(f"{method}: response must contain either result or error")
         if "error" in result:
-            raise RuntimeError(result["error"])
-
-        return result.get("result")
+            if not isinstance(result["error"], dict):
+                raise RuntimeError(f"{method}: malformed RPC error")
+            raise AuboRPCError(method, result["error"])
+        return result["result"]

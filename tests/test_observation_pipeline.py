@@ -1,59 +1,33 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""Simulator integration demo. Use --status for a read-only connection check."""
 
 import sys
-sys.path.append(".")
+from pathlib import Path
 
-from robot.aubo_driver import AuboRobot
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from robot.demo import run_demo
+
+from control.action_decoder import ActionDecoder
 from observation.observation import Observation
 from vla.fake_vla_obs import FakeVLAObservation
-from control.action_decoder import ActionDecoder
 
 
-robot = AuboRobot()
-
-robot.connect()
-
-
-# 1. get observation
-
-obs = Observation(robot)
-
-observation = obs.get()
-
-print("Observation:")
-print(observation["state"])
+def pipeline_demo(robot):
+    observation = Observation(robot).get()
+    action = FakeVLAObservation().predict(observation)
+    decoder = ActionDecoder(frame=robot.config.action_frame)
+    target_pose = decoder.delta_to_pose(robot.get_tcp_pose(), action.arm)
+    print("Observation state:", observation["state"])
+    print("Policy action:", action.vector())
+    print("Target TCP:", target_pose)
+    robot.move_pose(target_pose)
+    print("Observation pipeline completed; measured TCP:", robot.get_tcp_pose())
 
 
-# 2. policy inference
-
-policy = FakeVLAObservation()
-
-action = policy.predict(observation)
+def main():
+    return run_demo(pipeline_demo, "Placeholder image + robot state + FakeVLA motion demo")
 
 
-print("Action:")
-print(action.vector())
-
-
-# 3. action decode
-
-decoder = ActionDecoder()
-
-current_pose = robot.get_tcp_pose()
-
-target_pose = decoder.delta_to_pose(
-    current_pose,
-    action.arm
-)
-
-
-print("Target pose:")
-print(target_pose)
-
-
-# 4. execute
-
-robot.move_pose(target_pose)
-
-print("Observation pipeline finished")
+if __name__ == "__main__":
+    raise SystemExit(main())
